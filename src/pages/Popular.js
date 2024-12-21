@@ -48,7 +48,7 @@ function Popular() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState("infinity"); // "table" or "infinity"
-  const userPassword = localStorage.getItem("userPassword");
+  const userPassword = process.env.REACT_APP_API_key;
 
   const fetchMoviesForTable = async (page) => {
     try {

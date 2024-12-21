@@ -23,7 +23,7 @@ const BASE_URL = "https://api.themoviedb.org/3";
 function Home() {
   const [featuredMovie, setFeaturedMovie] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const userPassword = localStorage.getItem("userPassword");
+  const userPassword = process.env.REACT_APP_API_key;
 
   if (!userPassword) {
     console.error("API Key (Password) not found in localStorage.");

@@ -80,7 +80,7 @@ function Search() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState("infinity");
-  const userPassword = localStorage.getItem("userPassword");
+  const userPassword = process.env.REACT_APP_API_key;
   const [genres, setGenres] = useState([]);
   const [selectedGenre, setSelectedGenre] = useState("");
   const [selectedRating, setSelectedRating] = useState("");

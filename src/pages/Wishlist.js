@@ -21,7 +21,7 @@ function Wishlist() {
 
   useEffect(() => {
     window.scrollTo(0, 0); // 페이지 이동 시 상단으로 스크롤
-    const currentUser = localStorage.getItem("currentUser");
+    const currentUser = process.env.REACT_APP_API_key;
     if (currentUser) {
       const userWishlist =
         JSON.parse(localStorage.getItem(`${currentUser}_wishlist`)) || [];
