@@ -1,346 +1,114 @@
-import React, { useState } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
-import { CSSTransition } from "react-transition-group"; // 애니메이션 라이브러리
-import Footer from "../components/FooterSignin";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import axios from "axios"; // axios 추가
-import "../components/SigninAnimation.css"; // 애니메이션 스타일 추가
+import Footer from "../components/FooterSignin";
 
 // 스타일 정의
-const Container = styled.div`
-  width: 100%;
-  max-width: 400px;
-  padding: 2rem;
-  background-color: rgba(255, 255, 255, 0.85);
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  text-align: center;
-  margin: auto;
-`;
-
+// 로그인 페이지의 배경 스타일 정의
 const Background = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  margin: 0;
-  font-family: Arial, sans-serif;
   background-image: url(${process.env.PUBLIC_URL}/Signin_background.jpg);
   background-size: cover;
   background-position: center;
-  background-repeat: no-repeat;
 `;
 
-const LinkText = styled.span`
-  color: #1a73e8;
-  cursor: pointer;
-  font-size: 0.9rem;
-  text-decoration: underline;
-  padding: 0;
-
-  &:hover {
-    color: #0c54b8;
-  }
+// 로그인 박스 컨테이너 스타일 정의
+const Container = styled.div`
+  width: 100%;
+  max-width: 400px;
+  padding: 2rem;
+  background-color: rgba(255, 255, 255, 0.85); // 약간 투명한 배경
+  text-align: center;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 `;
 
-const Title = styled.h2`
-  margin-bottom: 1rem;
-  color: #333;
-  font-size: 1.5rem;
-`;
-
-const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-`;
-
-const Label = styled.label`
-  text-align: left;
-  margin-bottom: 0.5rem;
-  color: #555;
-`;
-
-const Input = styled.input`
-  padding: 0.75rem;
-  margin-bottom: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1rem;
-
-  &:focus {
-    outline: none;
-    border: 1px solid #4caf50;
-  }
-`;
-
+// 로그인 버튼 스타일 정의
 const Button = styled.button`
   padding: 0.75rem;
   font-size: 1rem;
-  background-color: #4caf50;
-  color: white;
+  background-color: #fee500; // 카카오의 대표 색상
+  color: black;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  margin-top: 1rem;
 
   &:hover {
-    background-color: #45a049;
+    background-color: #ffd600; // 마우스 오버 시 더 어두운 색
   }
 `;
 
-const LoadingContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: rgba(255, 255, 255, 0.85);
-`;
+const Signin = () => {
+  const navigate = useNavigate(); // React Router를 사용하여 페이지 이동 관리
+  const [message, setMessage] = useState(""); // 사용자에게 표시할 메시지 상태
+  const kakao_api = process.env.REACT_APP_KAKAO_API_KEY; // 환경 변수에서 Kakao API 키를 가져옴
 
-const Spinner = styled.div`
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  border-top: 4px solid #4caf50;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  animation: spin 1s linear infinite;
-
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
+  // Kakao SDK 초기화
+  useEffect(() => {
+    if (typeof window.Kakao !== "undefined" && !window.Kakao.isInitialized()) {
+      // Kakao SDK가 정의되어 있고 초기화되지 않았으면 초기화 수행
+      window.Kakao.init(kakao_api); // 환경 변수에서 가져온 API 키로 초기화
+      console.log("Kakao SDK Initialized:", window.Kakao.isInitialized());
     }
-    100% {
-      transform: rotate(360deg);
-    }
-  }
-`;
+  }, [kakao_api]);
 
-const LoadingMessage = styled.p`
-  margin-top: 1rem;
-  font-size: 1.2rem;
-  color: #333;
-`;
+  // 카카오 로그인 핸들러
+  const handleKakaoLogin = () => {
+    window.Kakao.Auth.login({
+      success: function (authObj) {
+        // 로그인 성공 시 실행
+        console.log("카카오 로그인 성공:", authObj);
 
-const Loading = () => (
-  <LoadingContainer>
-    <div>
-      <Spinner />
-      <LoadingMessage>처리 중입니다....</LoadingMessage>
-    </div>
-  </LoadingContainer>
-);
-const validatePasswordWithAPI = async (password) => {
-  try {
-    const response = await axios.get(
-      "https://api.themoviedb.org/3/movie/popular",
-      {
-        params: { api_key: password }, // 비밀번호를 API 키로 검증
-      }
-    );
-    return response.status === 200; // 요청 성공 시 true 반환
-  } catch (error) {
-    console.error("Invalid API key:", error);
-    return false; // 실패 시 false 반환
-  }
-};
-const Signin = ({ onLogin }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  // URL 쿼리 파라미터를 읽어 초기 상태 설정
-  const queryParams = new URLSearchParams(location.search);
-  const initialMode = queryParams.get("mode") === "signup";
+        // 사용자 정보를 요청
+        window.Kakao.API.request({
+          url: "/v2/user/me", // 사용자 정보 요청 URL
+          success: function (res) {
+            console.log("사용자 정보:", res);
 
-  const [isSignup, setIsSignup] = useState(initialMode);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isAgreed, setIsAgreed] = useState(false); // 약관 동의 상태
+            // 사용자 이메일 정보를 가져옴
+            const userEmail =
+              res.kakao_account && res.kakao_account.email
+                ? res.kakao_account.email
+                : "이메일 정보 없음";
 
-  const handleSignup = (e) => {
-    e.preventDefault();
-    setIsLoading(true);
+            // 사용자 인증 상태를 로컬 스토리지에 저장
+            localStorage.setItem("isAuthenticated", "true");
+            localStorage.setItem("userEmail", userEmail);
 
-    setTimeout(async () => {
-      if (!isAgreed) {
-        setMessage("약관에 동의해야 회원가입이 가능합니다.");
-        setIsLoading(false);
-        return;
-      }
-      if (password !== confirmPassword) {
-        setMessage("비밀번호가 일치하지 않습니다.");
-        setIsLoading(false);
-        return;
-      }
-      const isValidPassword = await validatePasswordWithAPI(password);
-
-      if (!isValidPassword) {
-        setMessage("올바른 API으로 가입해주세요.");
-        setIsLoading(false);
-        return;
-      }
-      const users = JSON.parse(localStorage.getItem("users")) || [];
-      const userExists = users.some((user) => user.email === email);
-      if (userExists) {
-        setMessage("이미 존재하는 이메일입니다.");
-        setIsLoading(false);
-        return;
-      }
-
-      const newUser = { email, password };
-      users.push(newUser);
-      localStorage.setItem("users", JSON.stringify(users));
-      setMessage("회원가입이 완료되었습니다!");
-      setIsSignup(false);
-      clearFields();
-      setIsLoading(false);
-    }, 1000);
-  };
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    setTimeout(() => {
-      const users = JSON.parse(localStorage.getItem("users")) || [];
-      const user = users.find(
-        (user) => user.email === email && user.password === password
-      );
-
-      if (user) {
-        localStorage.setItem("isAuthenticated", "true");
-        localStorage.setItem("userPassword", user.password);
-        console.log("로그인성공!", user.email);
-        onLogin(user.email);
-        setMessage("로그인 성공!");
-        setIsLoading(false);
-        navigate("/Home", { replace: true });
-      } else {
-        setMessage("사용자 이름 또는 비밀번호가 잘못되었습니다.");
-        setIsLoading(false);
-      }
-    }, 1000);
-  };
-
-  const clearFields = () => {
-    setEmail("");
-    setPassword("");
-    setConfirmPassword("");
+            setMessage("로그인 성공!"); // 성공 메시지 설정
+            navigate("/Home", { replace: true }); // 홈 페이지로 이동
+          },
+          fail: function (error) {
+            // 사용자 정보 요청 실패 시 실행
+            console.error("사용자 정보 요청 실패:", error);
+            setMessage("사용자 정보를 가져오지 못했습니다.");
+          },
+        });
+      },
+      fail: function (error) {
+        // 로그인 실패 시 실행
+        console.error("카카오 로그인 실패:", error);
+        setMessage("로그인 실패. 다시 시도해주세요.");
+      },
+    });
   };
 
   return (
-    <>
-      {isLoading ? (
-        <Loading />
-      ) : (
-        <Background>
-          <Container>
-            <CSSTransition
-              in={isSignup}
-              timeout={300}
-              classNames="form-slide"
-              unmountOnExit
-            >
-              <div>
-                <Title>회원가입</Title>
-                <Form onSubmit={handleSignup}>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    type="text"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="Enter your email"
-                  />
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    type="password"
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="Enter your password"
-                  />
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <Input
-                    type="password"
-                    id="confirmPassword"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    placeholder="Confirm your password"
-                  />
-                  <div style={{ textAlign: "left", marginBottom: "1rem" }}>
-                    <input
-                      type="checkbox"
-                      id="terms"
-                      checked={isAgreed}
-                      onChange={(e) => setIsAgreed(e.target.checked)}
-                    />
-                    <label
-                      htmlFor="terms"
-                      style={{ marginLeft: "0.5rem", fontSize: "0.9rem" }}
-                    >
-                      <span>
-                        <Link to="/Terms">이용약관</Link>
-                      </span>
-                      에 동의합니다.
-                    </label>
-                  </div>
-                  <Button type="submit">Sign Up</Button>
-                </Form>
-              </div>
-            </CSSTransition>
-
-            <CSSTransition
-              in={!isSignup}
-              timeout={300}
-              classNames="form-slide"
-              unmountOnExit
-            >
-              <div>
-                <Title>로그인</Title>
-                <Form onSubmit={handleLogin}>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    type="text"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="Enter your email"
-                  />
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    type="password"
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="Enter your password"
-                  />
-                  <Button type="submit">Sign In</Button>
-                </Form>
-              </div>
-            </CSSTransition>
-
-            {message && <p>{message}</p>}
-            <LinkText
-              onClick={() => {
-                setIsSignup(!isSignup);
-                setMessage("");
-                clearFields();
-              }}
-            >
-              {isSignup
-                ? "이미 계정이 있나요? 로그인"
-                : "계정이 없나요? 회원가입"}
-            </LinkText>
-          </Container>
-          <Footer />
-        </Background>
-      )}
-    </>
+    <Background>
+      <Container>
+        <h2>카카오 로그인</h2>
+        {/* 카카오 로그인 버튼 */}
+        <Button onClick={handleKakaoLogin}>카카오로 로그인</Button>
+        {/* 로그인 상태 메시지 표시 */}
+        {message && <p>{message}</p>}
+        {/* 하단 푸터 */}
+        <Footer />
+      </Container>
+    </Background>
   );
 };
 
